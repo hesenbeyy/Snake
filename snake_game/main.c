@@ -1,19 +1,8 @@
 #include <stdio.h>
 #include <SDL.h>
 #include <time.h>
-
-#define WIDTH 800
-#define HEIGHT 600
-#define GRID_SIZE 20
-#define FPS 60
-#define frameDelay (1000 / FPS)
-
-typedef enum {
-	DIR_UP,
-	DIR_DOWN,
-	DIR_RIGHT,
-	DIR_LEFT
-} Direction;
+#include "macros.h"
+#include "funcs.h"
 
 int main() {
 	Uint32 frameStart;
@@ -26,36 +15,27 @@ int main() {
 	printf("Hello Snake!\n");
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_Window* window = SDL_CreateWindow("Snake", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, 0);
-	
 	SDL_Surface* surface = SDL_GetWindowSurface(window);
-	
-	SDL_Rect line;
-	line.w = 1;
-	line.h = HEIGHT;
+	SDL_Rect line = { 0 };
 
-	for (int x = 0; x <= WIDTH; x += GRID_SIZE) {
-		line.x = x;
-		line.y = 0;
-		SDL_FillRect(surface, &line, SDL_MapRGB(surface->format, 128, 128, 128));
-	}
-
-	line.h = 1;
-	line.w = WIDTH;
-	
-	for (int y = 0; y <= HEIGHT; y += GRID_SIZE) {
-		line.y = y;
-		line.x = 0;
-		SDL_FillRect(surface, &line, SDL_MapRGB(surface->format, 128, 128 ,128));
-	}
-	
+	drawGrid(surface, line);
 
 	SDL_Rect snake;
+	Node* head = (Node*)malloc(sizeof(Node));
+	
 	snake.x = WIDTH / 2;
 	snake.y = HEIGHT / 2;
 	snake.h = GRID_SIZE + 1;
 	snake.w = GRID_SIZE + 1;
 
-	SDL_FillRect(surface, &snake, SDL_MapRGB(surface->format, 0, 128, 0));
+	head->snake_position = snake;
+	head->next = NULL;
+
+	Node* temp = head;
+	while (temp){
+		SDL_FillRect(surface, &temp->snake_position, SDL_MapRGB(surface->format, 0, 128, 0));
+		temp = temp->next;
+	}
 
 	SDL_UpdateWindowSurface(window);
 
@@ -70,29 +50,42 @@ int main() {
 	int running = 1;
 	int snakeSpeed = 150;
 	Uint32 lastMoveTime = 0;
+	int directionChanged = 0;
 	while (running) {
 		frameStart = SDL_GetTicks();
 		while (SDL_PollEvent(&e)) {
 			if (e.type == SDL_QUIT) {
 				running = 0;
 			}
-			else if (e.type == SDL_KEYDOWN) {
+			else if (e.type == SDL_KEYDOWN && directionChanged == 0) {
 				switch (e.key.keysym.sym) {
 				case SDLK_LEFT:
 					printf("Left arrow pressed\n");
-					if (currentDir != DIR_RIGHT) currentDir = DIR_LEFT;
+					if (currentDir != DIR_RIGHT) {
+						currentDir = DIR_LEFT;
+						directionChanged = 1;
+					}
 					break;
 				case SDLK_RIGHT: 
 					printf("Right arrow pressed\n");
-					if (currentDir != DIR_LEFT) currentDir = DIR_RIGHT;
+					if (currentDir != DIR_LEFT) {
+						currentDir = DIR_RIGHT;
+						directionChanged = 1;
+					}
 					break;
 				case SDLK_UP:
 					printf("Up arrow pressed\n");
-					if (currentDir != DIR_DOWN) currentDir = DIR_UP;
+					if (currentDir != DIR_DOWN) {
+						currentDir = DIR_UP;
+						directionChanged = 1;
+					}
 					break;
 				case SDLK_DOWN:
 					printf("Down arrow pressed\n");
-					if(currentDir != DIR_UP) currentDir = DIR_DOWN;
+					if (currentDir != DIR_UP) {
+						currentDir = DIR_DOWN;
+						directionChanged = 1;
+					}
 					break;
 				default:
 					printf("thats it youre going into retard crusher\n");
@@ -105,86 +98,124 @@ int main() {
 		}
 
 		Uint32 currentTime = SDL_GetTicks();
+		
+		SDL_Rect newHeadPosition = head->snake_position;
 
 
 		if (currentTime - lastMoveTime > snakeSpeed) {
 			switch (currentDir) {
 			case DIR_RIGHT:
-				snake.x += GRID_SIZE;
+				newHeadPosition.x += GRID_SIZE;
 				break;
 			case DIR_LEFT:
-				snake.x -= GRID_SIZE;
+				newHeadPosition.x -= GRID_SIZE;
 				break;
 			case DIR_UP:
-				snake.y -= GRID_SIZE;
+				newHeadPosition.y -= GRID_SIZE;
 				break;
 			case DIR_DOWN:
-				snake.y += GRID_SIZE;
+				newHeadPosition.y += GRID_SIZE;
 				break;
+			}
+
+			head = insertNewHead(head, newHeadPosition);
+			directionChanged = 0;
+
+			if (head->snake_position.x < 0) {
+				printf("Left Wall Collision, Game lost!\n");
+				SDL_Delay(GAME_OVER_DELAY);
+				running = 0;
+				break;
+			}
+			if (head->snake_position.x > WIDTH - GRID_SIZE) {
+				printf("Right Wall Collision, Game lost!\n");
+				SDL_Delay(GAME_OVER_DELAY);
+				running = 0;
+				break;
+			}
+			if (head->snake_position.y < 0) {
+				printf("Top Wall Collision, Game lost!\n");
+				SDL_Delay(GAME_OVER_DELAY);
+				running = 0;
+				break;
+			}
+
+			if (head->snake_position.y > HEIGHT - GRID_SIZE) {
+				printf("Bottom Wall Collision, Game lost!\n");
+				SDL_Delay(GAME_OVER_DELAY);
+				running = 0;
+				break;
+			}
+
+			Node* check = head->next;
+			while (check) {
+				if (check->snake_position.x == head->snake_position.x &&
+					check->snake_position.y == head->snake_position.y) {
+					printf("Self collision detected, Game lost!\n");
+					SDL_Delay(GAME_OVER_DELAY);
+					running = 0;
+					break;
+				}
+				check = check->next;
+			}
+
+
+			if (!(head->snake_position.x == apple.x && head->snake_position.y == apple.y)) head = deleteTail(head);
+			else {
+				printf("Apple eaten\n");
+				while (1) {
+					randAppleX = (rand() % (WIDTH / GRID_SIZE)) * GRID_SIZE;
+					randAppleY = (rand() % (HEIGHT / GRID_SIZE)) * GRID_SIZE;
+					SDL_Rect check = { randAppleX, randAppleY, GRID_SIZE, GRID_SIZE };
+
+					Node* temp = head;
+					int valid = 1;
+					while (temp) {
+						if (check.x == temp->snake_position.x && check.y == temp->snake_position.y) {
+							valid = 0;
+							break;
+						}
+						temp = temp->next;
+					}
+
+					if (valid) {
+						apple.x = randAppleX;
+						apple.y = randAppleY;
+						break;
+					}
+				}
+
 			}
 
 			lastMoveTime = currentTime;
-		}
 
-		if (snake.x < 0) {
-			printf("Left Wall Collision\n");
-			snake.x = 0;
 		}
-		if (snake.x > WIDTH - GRID_SIZE) {
-			printf("Right Wall Collision\n");
-			snake.x = WIDTH - GRID_SIZE;	
-		}
-		if (snake.y < 0) {
-			printf("Top Wall Collision\n");
-			snake.y = 0;
-		}
-		
-		if (snake.y > HEIGHT - GRID_SIZE) {
-			printf("Bottom Wall Collision\n");
-			snake.y = HEIGHT - GRID_SIZE;
-		}
-											
 
 		SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0, 0, 0));
-		line.w = 1;
-		line.h = HEIGHT;
+		drawGrid(surface, line);
 
-		for (int x = 0; x <= WIDTH; x += GRID_SIZE) {
-			line.x = x;
-			line.y = 0;
-			SDL_FillRect(surface, &line, SDL_MapRGB(surface->format, 128, 128, 128));
-		}
-
-		line.h = 1;
-		line.w = WIDTH;
-
-		for (int y = 0; y <= HEIGHT; y += GRID_SIZE) {
-			line.y = y;
-			line.x = 0;
-			SDL_FillRect(surface, &line, SDL_MapRGB(surface->format, 128, 128, 128));
-		}
-
-		if (snake.x == apple.x && snake.y == apple.y) {
-			printf("Collision Detected\n");
-			while (1) {
-				randAppleX = (rand() % (WIDTH / GRID_SIZE)) * GRID_SIZE;
-				randAppleY = (rand() % (HEIGHT / GRID_SIZE)) * GRID_SIZE;
-				if (randAppleX != apple.x || randAppleY != apple.y) {
-					printf("Exiting the loop\n");
-					apple.x = randAppleX;
-					apple.y = randAppleY;
-					break;
-				}
-				printf("Same position again, restarting while loop\n");
+		Node* temp = head;
+		while (temp) {
+			if (temp == head) {
+				SDL_FillRect(surface, &temp->snake_position, SDL_MapRGB(surface->format, 0, 255, 0));
+				temp = temp->next;
+			}
+			else {
+				SDL_FillRect(surface, &temp->snake_position, SDL_MapRGB(surface->format, 0, 128, 0));
+				temp = temp->next;
 			}
 		}
-
-		SDL_FillRect(surface, &snake, SDL_MapRGB(surface->format, 0, 255, 0));
 		SDL_FillRect(surface, &apple, SDL_MapRGB(surface->format, 255, 0, 0));
 
 		frameTime = SDL_GetTicks() - frameStart;
 		if (frameDelay > frameTime) SDL_Delay(frameDelay - frameTime);
 		SDL_UpdateWindowSurface(window);
+	}
+
+	while (head) {
+		Node* temp = head;
+		head = head->next;
+		free(temp);
 	}
 
 	SDL_DestroyWindow(window);
