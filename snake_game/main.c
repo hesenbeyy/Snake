@@ -88,7 +88,7 @@ int main() {
 					}
 					break;
 				default:
-					printf("thats it youre going into retard crusher\n");
+					printf("Invalid key pressed\n");
 					break;
 				}
 
