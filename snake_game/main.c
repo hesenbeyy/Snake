@@ -1,6 +1,9 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stdio.h>
 #include <SDL.h>
 #include <time.h>
+#include <stdlib.h>
 #include "macros.h"
 #include "funcs.h"
 
@@ -10,6 +13,8 @@ int main() {
 	Direction currentDir = DIR_UP;
 	int randAppleX;
 	int randAppleY;
+	int score = 0;
+	int read_score;
 	srand(time(NULL));
 
 	printf("Hello Snake!\n");
@@ -60,28 +65,28 @@ int main() {
 			else if (e.type == SDL_KEYDOWN && directionChanged == 0) {
 				switch (e.key.keysym.sym) {
 				case SDLK_LEFT:
-					printf("Left arrow pressed\n");
+					//printf("Left arrow pressed\n");
 					if (currentDir != DIR_RIGHT) {
 						currentDir = DIR_LEFT;
 						directionChanged = 1;
 					}
 					break;
 				case SDLK_RIGHT: 
-					printf("Right arrow pressed\n");
+					//printf("Right arrow pressed\n");
 					if (currentDir != DIR_LEFT) {
 						currentDir = DIR_RIGHT;
 						directionChanged = 1;
 					}
 					break;
 				case SDLK_UP:
-					printf("Up arrow pressed\n");
+					//printf("Up arrow pressed\n");
 					if (currentDir != DIR_DOWN) {
 						currentDir = DIR_UP;
 						directionChanged = 1;
 					}
 					break;
 				case SDLK_DOWN:
-					printf("Down arrow pressed\n");
+					//printf("Down arrow pressed\n");
 					if (currentDir != DIR_UP) {
 						currentDir = DIR_DOWN;
 						directionChanged = 1;
@@ -90,11 +95,8 @@ int main() {
 				default:
 					printf("Invalid key pressed\n");
 					break;
-				}
-
-	
+				}	
 			}
-			
 		}
 
 		Uint32 currentTime = SDL_GetTicks();
@@ -122,26 +124,26 @@ int main() {
 			directionChanged = 0;
 
 			if (head->snake_position.x < 0) {
-				printf("Left Wall Collision, Game lost!\n");
+				printf("Left Wall Collision, Game Lost!\n");
 				SDL_Delay(GAME_OVER_DELAY);
 				running = 0;
 				break;
 			}
 			if (head->snake_position.x > WIDTH - GRID_SIZE) {
-				printf("Right Wall Collision, Game lost!\n");
+				printf("Right Wall Collision, Game Lost!\n");
 				SDL_Delay(GAME_OVER_DELAY);
 				running = 0;
 				break;
 			}
 			if (head->snake_position.y < 0) {
-				printf("Top Wall Collision, Game lost!\n");
+				printf("Top Wall Collision, Game Lost!\n");
 				SDL_Delay(GAME_OVER_DELAY);
 				running = 0;
 				break;
 			}
 
 			if (head->snake_position.y > HEIGHT - GRID_SIZE) {
-				printf("Bottom Wall Collision, Game lost!\n");
+				printf("Bottom Wall Collision, Game Lost!\n");
 				SDL_Delay(GAME_OVER_DELAY);
 				running = 0;
 				break;
@@ -151,7 +153,7 @@ int main() {
 			while (check) {
 				if (check->snake_position.x == head->snake_position.x &&
 					check->snake_position.y == head->snake_position.y) {
-					printf("Self collision detected, Game lost!\n");
+					printf("Self Collision Detected, Game Lost!\n");
 					SDL_Delay(GAME_OVER_DELAY);
 					running = 0;
 					break;
@@ -162,7 +164,8 @@ int main() {
 
 			if (!(head->snake_position.x == apple.x && head->snake_position.y == apple.y)) head = deleteTail(head);
 			else {
-				printf("Apple eaten\n");
+				printf("Apple eaten, Score: %d\n",++score);
+
 				while (1) {
 					randAppleX = (rand() % (WIDTH / GRID_SIZE)) * GRID_SIZE;
 					randAppleY = (rand() % (HEIGHT / GRID_SIZE)) * GRID_SIZE;
@@ -218,6 +221,57 @@ int main() {
 		free(temp);
 	}
 
+	/*FILE* fp_write = fopen(RECORDS_FILE, "wb");
+	if (!fp_write) {
+		perror("Couldn't open bin file");
+		exit(1);
+	}
+
+	fwrite(&score, sizeof(score), 1, fp_write);
+	fclose(fp_write);*/
+
+	FILE* fp_read = fopen(RECORDS_FILE, "rb");
+	if (!fp_read) {
+		int init_score = 0;
+		FILE* fp_create = fopen(RECORDS_FILE, "wb");
+		if (!fp_create) {
+			perror("Couldn't create bin file");
+			exit(1);
+		}
+		fwrite(&init_score, sizeof(int), 1, fp_create);
+		fclose(fp_create);
+
+		fp_read = fopen(RECORDS_FILE, "rb");
+		if (!fp_read) {
+			perror("Couldn't open bin file");
+			exit(1);
+		}
+	}
+
+	fread(&read_score, sizeof(int), 1, fp_read);
+	fclose(fp_read);
+
+	printf("Your final score: %d, Highest score: %d\n", score, read_score);
+
+	if (read_score < score) {
+		printf("New highest score: %d\n", score);
+		FILE* temp = fopen("temp.bin", "wb");
+		if (!temp) {
+			perror("Couldn't open temporary bin file");
+			exit(1);
+		}
+		fwrite(&score, sizeof(score), 1, temp);
+		fclose(temp);
+		if (remove(RECORDS_FILE) != 0) {
+			perror("Couldn't remove records file");
+			exit(1);
+		}
+		if (rename("temp.bin", RECORDS_FILE) != 0) {
+			perror("Couldn't rename temporary file");
+			exit(1);
+		}
+	}
+	
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 
