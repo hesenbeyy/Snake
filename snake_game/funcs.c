@@ -22,7 +22,7 @@ void drawGrid(SDL_Surface* surface, SDL_Rect line) {
 	}
 }
 
-Node* insertNewHead(Node* head, SDL_Rect new_position) {
+Node* insertNewHead(Node* head, SDL_Rect new_position){
 	Node* newNode = (Node *)malloc(sizeof(Node));
 	newNode->snake_position = new_position;
 	newNode->next = head;

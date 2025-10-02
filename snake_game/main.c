@@ -53,7 +53,7 @@ int main() {
 	SDL_UpdateWindowSurface(window);
 	SDL_Event e;	
 	int running = 1;
-	int snakeSpeed = 150;
+	int snakeSpeed = 100;
 	Uint32 lastMoveTime = 0;
 	int directionChanged = 0;
 	while (running) {
@@ -184,6 +184,7 @@ int main() {
 					if (valid) {
 						apple.x = randAppleX;
 						apple.y = randAppleY;
+						//snakeSpeed -= 10;
 						break;
 					}
 				}
@@ -195,7 +196,7 @@ int main() {
 		}
 
 		SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0, 0, 0));
-		drawGrid(surface, line);
+		//drawGrid(surface, line);
 
 		Node* temp = head;
 		while (temp) {
